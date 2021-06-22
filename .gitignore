@@ -1,3 +1,17 @@
+# cache directories
+*.DS_Store
+
+#phpstorm project files
+.idea/codeception.xml
+.idea/workspace.xml
+.idea/modules.xml
+.idea/*.iml
+.idea/dictionaries/
+.idea/dataSources*
+.idea/httpRequests*
+.idea/shelf*
+.idea/.name
+
 assets/*
 !assets/.gitignore
 protected/runtime/*

@@ -1,0 +1,35 @@
+{
+  "name": "saga/yii2-queue-azure-service-bus",
+  "description": "Yii2 Queue connector with Azure service bus",
+  "license": "MIT",
+  "keywords": [
+    "azure",
+    "service",
+    "microsoft",
+    "bus",
+    "yii2-queue",
+    "yii2"
+  ],
+  "authors": [
+    {
+      "name": "Adrien Herbert"
+    },
+    {
+      "name": "Aurélien Chrétien"
+    }
+  ],
+  "require": {
+    "yiisoft/yii2-queue": "~2.0.2",
+    "yiisoft/yii2-httpclient": "~2.0",
+    "nesbot/carbon": "^2.40"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest"
+  },
+  "autoload": {
+    "psr-4": {
+      "saga\\queue\\azure\\": "src"
+    }
+  },
+  "minimum-stability": "dev"
+}

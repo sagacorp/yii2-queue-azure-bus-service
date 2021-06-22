@@ -1,0 +1,1 @@
+Support Shared Access Signature auth only
