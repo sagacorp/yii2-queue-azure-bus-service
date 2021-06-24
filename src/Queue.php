@@ -8,6 +8,7 @@ use saga\queue\azure\service\Message;
 use saga\queue\azure\service\ServiceBus;
 use yii\base\NotSupportedException;
 use yii\di\Instance;
+use yii\queue\cli\LoopInterface;
 
 /**
  * Azure bus Queue.
@@ -54,12 +55,12 @@ class Queue extends \yii\queue\cli\Queue
     public function run(bool $repeat, int $timeout = 30): ?int
     {
         return $this->runWorker(
-            function (callable $canContinue) use ($repeat, $timeout) {
-                while ($canContinue()) {
+            function (LoopInterface $loop) use ($repeat, $timeout) {
+                while ($loop->canContinue()) {
                     $message = $this->serviceBus->receiveMessage(ServiceBus::PEEK_LOCK, $timeout);
 
-                    if ($message !== null) {
-                        if ($this->handleMessage($message->getMessageId(), $message->getBody(), $message->getTimeToLive(), $message->getDeliveryCount())) {
+                    if ($message !== null && $message->brokerProperties !== null) {
+                        if ($this->handleMessage($message->brokerProperties->messageId, $message->body, $message->brokerProperties->timeToLive, $message->brokerProperties->deliveryCount)) {
                             $this->serviceBus->deleteMessage($message);
                         }
                     } elseif (!$repeat) {

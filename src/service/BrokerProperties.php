@@ -4,14 +4,14 @@ namespace saga\queue\azure\service;
 
 use Carbon\Carbon;
 use Carbon\CarbonTimeZone;
-use yii\base\BaseObject;
+use yii\base\Model;
 
 /**
  * Class MessageProperties
  *
  * @package common\services\azure
  */
-class BrokerProperties extends BaseObject
+class BrokerProperties extends Model
 {
     //region Constants
     public const AZURE_DATE_FORMAT = 'D, d M Y H:i:s T';
@@ -21,58 +21,62 @@ class BrokerProperties extends BaseObject
     /**
      * The correlation ID.
      */
-    public string $correlationId;
+    public ?string $correlationId = null;
     /**
      * The delivery count.
      */
-    public int $deliveryCount;
+    public int $deliveryCount = 1;
     /**
      * The label.
      */
-    public string $label;
+    public ?string $label = null;
     /**
      * The lock token.
      */
-    public string $lockToken;
+    public ?string $lockToken = null;
     /**
      * The message Id.
      */
-    public string $messageId;
+    public ?string $messageId = null;
     /**
      * The partitioned entity.
      */
-    public string $partitionKey;
+    public ?string $partitionKey = null;
     /**
      * The reply to.
      */
-    public string $replyTo;
+    public ?string $replyTo = null;
     /**
      * The reply to session ID.
      */
-    public string $replyToSessionId;
+    public ?string $replyToSessionId = null;
     /**
      * The sequence number.
      */
-    public string $sequenceNumber;
+    public ?string $sequenceNumber = null;
     /**
      * The session ID.
      */
-    public string $sessionId;
+    public ?string $sessionId = null;
+    /**
+     * The state of the message.
+     */
+    public ?string $state = null;
     /**
      * The time to live.
      */
-    public float $timeToLive;
+    public float $timeToLive = 1;
     /**
      * The to.
      */
-    public string $to;
+    public ?string $to = null;
     //endregion Public Properties
 
     //region Private Properties
     /**
      * The enqueued time.
      */
-    private ?Carbon $EnqueuedTimeUtc;
+    private ?Carbon $enqueuedTimeUtc;
     /**
      * The locked until time.
      */
@@ -127,7 +131,7 @@ class BrokerProperties extends BaseObject
     //region Getters/Setters
     public function getEnqueuedTimeUtc(): ?Carbon
     {
-        return $this->EnqueuedTimeUtc;
+        return $this->enqueuedTimeUtc;
     }
 
     public function getLockedUntilUtc(): ?Carbon
@@ -140,13 +144,13 @@ class BrokerProperties extends BaseObject
         return $this->scheduledEnqueueTimeUtc;
     }
 
-    public function setEnqueuedTimeUtc(Carbon|string $EnqueuedTimeUtc): void
+    public function setEnqueuedTimeUtc(Carbon|string $enqueuedTimeUtc): void
     {
-        if (!$EnqueuedTimeUtc instanceof Carbon) {
-            $EnqueuedTimeUtc = $this->azureDateToCarbon($EnqueuedTimeUtc);
+        if (!$enqueuedTimeUtc instanceof Carbon) {
+            $enqueuedTimeUtc = $this->azureDateToCarbon($enqueuedTimeUtc);
         }
 
-        $this->EnqueuedTimeUtc = $EnqueuedTimeUtc;
+        $this->enqueuedTimeUtc = $enqueuedTimeUtc;
     }
 
     public function setLockedUntilUtc(Carbon|string $lockedUntilUtc): void

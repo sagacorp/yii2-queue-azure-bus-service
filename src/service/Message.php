@@ -5,10 +5,7 @@ namespace saga\queue\azure\service;
 use yii\base\BaseObject;
 
 /**
- * @property int              $contentType             =
- * @property BrokerProperties $messageProperties       ok
- * @property array            $properties              ok
- * @property string           $property                ok
+ * @property string $property
  *
  * partition key
  * enqueuedTimeUtc
@@ -36,30 +33,13 @@ class Message extends BaseObject
      * The URI of the locked message. You can use this URI to unlock or delete the message.
      */
     public ?string $location;
-    //endregion Public Properties
-
-    //region Private Properties
     /**
      * The properties of the message that are customized.
      */
-    private array $customProperties = [];
-    //endregion Private Properties
+    public array $properties = [];
+    //endregion Public Properties
 
     //region Getters/Setters
-    /**
-     * Gets the custom properties.
-     *
-     * @return array
-     */
-    public function getProperties(): array
-    {
-        if (null === $this->customProperties) {
-            $this->customProperties = [];
-        }
-
-        return $this->customProperties;
-    }
-
     /**
      * Gets the value of a custom property.
      *
@@ -69,7 +49,7 @@ class Message extends BaseObject
      */
     public function getProperty(string $propertyName): ?string
     {
-        return $this->getProperties()[strtolower($propertyName)] ?? null;
+        return $this->properties[strtolower($propertyName)] ?? null;
     }
 
     /**
@@ -77,7 +57,7 @@ class Message extends BaseObject
      */
     public function setProperty(string $propertyName, mixed $propertyValue): void
     {
-        $this->customProperties[strtolower($propertyName)] = $propertyValue;
+        $this->properties[strtolower($propertyName)] = $propertyValue;
     }
     //endregion Getters/Setters
 }

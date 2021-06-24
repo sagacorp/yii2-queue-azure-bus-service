@@ -5,6 +5,7 @@ namespace saga\queue\azure\service;
 use JsonException;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
+use yii\helpers\ArrayHelper;
 use yii\httpclient\Client;
 use yii\httpclient\Exception;
 use yii\httpclient\Request;
@@ -92,17 +93,38 @@ class ServiceBus extends Component
         if ($response->statusCode === '204') {
             $message = null;
         } elseif ($response->statusCode === '200' || $response->statusCode === '201') {
+            $headers = [];
+
+            foreach ($response->headers as $key => $value) {
+                if (!empty($value)) {
+                    $headers[$key] = reset($value);
+                }
+            }
+
             $message = new Message(
                 [
-                    'brokerProperties' => new BrokerProperties(json_decode($response->headers->remove('brokerproperties', '[]'), true, 512, JSON_THROW_ON_ERROR)),
-                    'contentType'      => $response->headers->remove('content-type'),
-                    'date'             => $response->headers->remove('date'),
-                    'body'             => $response->getContent(),
-                    'location'         => $response->headers->remove('location'),
+                    'body'        => $response->getContent(),
+                    'contentType' => ArrayHelper::remove($headers, 'content-type'),
+                    'date'        => ArrayHelper::remove($headers, 'date'),
+                    'location'    => ArrayHelper::remove($headers, 'location'),
                 ]
             );
 
-            foreach ($response->headers as $headerKey => $value) {
+            $headerBrokerProperties = ArrayHelper::remove($headers, 'brokerproperties');
+
+            if ($headerBrokerProperties) {
+                try {
+                    $headerBrokerProperties = json_decode((string) $headerBrokerProperties, true, 512, JSON_THROW_ON_ERROR);
+                    $headerBrokerProperties = array_flip((array_map('lcfirst', array_flip($headerBrokerProperties))));
+
+                    $message->brokerProperties = new BrokerProperties();
+                    $message->brokerProperties->setAttributes($headerBrokerProperties, false);
+                } catch (\JsonException $e) {
+                    \Yii::error($e);
+                }
+            }
+
+            foreach ($headers as $headerKey => $value) {
                 if (is_scalar($value)) {
                     $message->setProperty($headerKey, $value);
                 }
@@ -147,7 +169,7 @@ class ServiceBus extends Component
         $response = $request->send();
 
         if ('201' !== $response->statusCode) {
-            throw new Exception('');
+            throw new Exception($response->toString());
         }
 
         return $response;
