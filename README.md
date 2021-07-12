@@ -1,8 +1,8 @@
 <h1>Azure service bus driver for Yii2 Queue</h1>
 
-This extension is a [Yii2 Queue](https://github.com/yiisoft/yii2-queue) driver to support queues based on [Microsoft Azure Service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-messaging-overview).
+This extension is a [Yii2 Queue](https://github.com/yiisoft/yii2-queue) driver for queues based on [Microsoft Azure Service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-messaging-overview).
 
-It's based on the [Azure Service Bus REST API](https://docs.microsoft.com/en-us/rest/api/servicebus)
+It uses the [Azure Service Bus REST API](https://docs.microsoft.com/en-us/rest/api/servicebus)
 
 <h2>Installation</h2>
 
@@ -25,7 +25,7 @@ or add the extention to your composer json.
 First of all, you may configure your [Azure service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-portal#create-a-namespace-in-the-azure-portal).
 
 
-Then, in order to use the extension you have to configure your project like the following:
+Then, in order to use the extension you have to configure yii2 queue and the service bus the  like the following:
 
 ```php
 return [
@@ -47,7 +47,7 @@ return [
       
 *Currently this extention supports the [Shared Access Signature authentification](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-sas) only. It doesn't support Azure Active Directory.*
         
-And you can then to send a task into the queue:
+Once configured,  you can send a task into the queue:
 
 ```
 Yii::$app->queue->push(new DownloadJob([
