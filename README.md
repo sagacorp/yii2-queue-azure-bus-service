@@ -14,7 +14,7 @@ Either run
 php composer.phar require --prefer-dist sagacorp/yii2-queue-azure-service-bus
 ```
 
-or add the extention to your composer json.
+or add the extension to your composer json.
 
 ```
 "sagacorp/yii2-queue-azure-service-bus": "~1.0.0"
@@ -22,10 +22,10 @@ or add the extention to your composer json.
 
 <h2>Basic Usage</h2>
 
-First of all, you may configure your [Azure service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-portal#create-a-namespace-in-the-azure-portal).
+First, you may configure your [Azure service Bus](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-portal#create-a-namespace-in-the-azure-portal).
 
 
-Then, in order to use the extension you have to configure yii2 queue and the service bus the  like the following:
+Then, configure yii2 queue, and the service bus like the following:
 
 ```php
 return [
@@ -42,10 +42,11 @@ return [
             'sharedAccessKeyName' => 'your shared access key name',
             'queue'               => 'the name of your Aruez Service Bus queue',
         ],
-]
+    ]
+];
  ```       
       
-*Currently this extention supports the [Shared Access Signature authentification](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-sas) only. It doesn't support Azure Active Directory.*
+*Currently this extension supports the [Shared Access Signature authentication](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-sas) only. It doesn't support Azure Active Directory.*
         
 Once configured,  you can send a task into the queue:
 
