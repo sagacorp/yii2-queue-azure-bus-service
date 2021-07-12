@@ -49,7 +49,7 @@ return [
         
 Once configured,  you can send a task into the queue:
 
-```
+```php
 Yii::$app->queue->push(new DownloadJob([
     'url' => 'http://example.com/image.jpg',
     'file' => '/tmp/image.jpg',
