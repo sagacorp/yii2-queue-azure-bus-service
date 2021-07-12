@@ -1,15 +1,9 @@
 {
-  "name": "saga/yii2-queue-azure-service-bus",
-  "description": "Yii2 Queue connector with Azure service bus",
+  "name": "sagacorp/yii2-queue-azure-service-bus",
+  "description": "Yii2 Queue driver for Azure service bus",
   "license": "MIT",
-  "keywords": [
-    "azure",
-    "service",
-    "microsoft",
-    "bus",
-    "yii2-queue",
-    "yii2"
-  ],
+  "keywords": ["azure", "service", "microsoft", "bus", "yii2-queue", "yii2", "queue", "yii"],
+  "type": "yii2-extension",
   "authors": [
     {
       "name": "Adrien Herbert"
@@ -28,8 +22,15 @@
   },
   "autoload": {
     "psr-4": {
-      "saga\\queue\\azure\\": "src"
+      "sagacorp\\queue\\azure\\": "src"
     }
   },
-  "minimum-stability": "dev"
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://asset-packagist.org"
+    }
+  ]
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace saga\queue\azure\service;
+namespace sagacorp\queue\azure\service;
 
 use JsonException;
 use yii\base\Component;

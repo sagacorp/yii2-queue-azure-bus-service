@@ -1,11 +1,11 @@
 <?php
 
-namespace saga\queue\azure;
+namespace sagacorp\queue\azure;
 
 use Carbon\Carbon;
-use saga\queue\azure\service\BrokerProperties;
-use saga\queue\azure\service\Message;
-use saga\queue\azure\service\ServiceBus;
+use sagacorp\queue\azure\service\BrokerProperties;
+use sagacorp\queue\azure\service\Message;
+use sagacorp\queue\azure\service\ServiceBus;
 use yii\base\NotSupportedException;
 use yii\di\Instance;
 use yii\queue\cli\LoopInterface;

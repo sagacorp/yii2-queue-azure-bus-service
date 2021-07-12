@@ -1,6 +1,6 @@
 <?php
 
-namespace saga\queue\azure;
+namespace sagacorp\queue\azure;
 
 use yii\queue\cli\Command as CliCommand;
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace saga\queue\azure\service;
+namespace sagacorp\queue\azure\service;
 
 use Carbon\Carbon;
 use Carbon\CarbonTimeZone;

@@ -11,13 +11,13 @@ Install this extension with [composer](http://getcomposer.org/download/).
 Either run
 
 ```
-php composer.phar require --prefer-dist saga/yii2-queue-azure-service-bus
+php composer.phar require --prefer-dist sagacorp/yii2-queue-azure-service-bus
 ```
 
 or add the extention to your composer json.
 
 ```
-"saga/yii2-queue-azure-service-bus": "~1.0.0"
+"sagacorp/yii2-queue-azure-service-bus": "~1.0.0"
 ```
 
 <h2>Basic Usage</h2>
