@@ -2,7 +2,6 @@
 
 namespace sagacorp\queue\azure;
 
-use Carbon\Carbon;
 use sagacorp\queue\azure\service\BrokerProperties;
 use sagacorp\queue\azure\service\Message;
 use sagacorp\queue\azure\service\ServiceBus;
@@ -15,10 +14,6 @@ use yii\queue\cli\LoopInterface;
  */
 class Queue extends \yii\queue\cli\Queue
 {
-    //region Constants
-    public const PRIORITY = 'yii-priority';
-    //endregion Constants
-
     //region Public Properties
     /**
      * @var ServiceBus
@@ -102,13 +97,10 @@ class Queue extends \yii\queue\cli\Queue
                 'contentType'      => 'application/vnd.microsoft.servicebus.yml',
                 'brokerProperties' => new BrokerProperties(
                     [
-                        'timeToLive'              => $ttr,
-                        'scheduledEnqueueTimeUtc' => Carbon::now()->addSeconds($delay),
+                        'timeToLive' => $ttr,
+                        'delay'      => $delay,
                     ]
                 ),
-                'properties'       => [
-                    self::PRIORITY => $priority ?? 'low',
-                ],
             ]
         );
 

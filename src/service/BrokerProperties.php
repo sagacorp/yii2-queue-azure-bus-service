@@ -13,10 +13,6 @@ use yii\base\Model;
  */
 class BrokerProperties extends Model
 {
-    //region Constants
-    public const AZURE_DATE_FORMAT = 'D, d M Y H:i:s T';
-    //endregion Constants
-
     //region Public Properties
     /**
      * The correlation ID.
@@ -139,6 +135,11 @@ class BrokerProperties extends Model
         return $this->lockedUntilUtc;
     }
 
+    public function setDelay(int $value): void
+    {
+        $this->setScheduledEnqueueTimeUtc(Carbon::now()->addSeconds($value)->setTimezone('UTC'));
+    }
+
     public function getScheduledEnqueueTimeUtc(): ?Carbon
     {
         return $this->scheduledEnqueueTimeUtc;
@@ -175,12 +176,12 @@ class BrokerProperties extends Model
     //region Protected Methods
     protected function azureDateToCarbon(string $date): ?Carbon
     {
-        return Carbon::createFromFormat(self::AZURE_DATE_FORMAT, $date, new CarbonTimeZone('GMT')) ?: null;
+        return Carbon::parse($date, 'UTC') ?: null;
     }
 
     protected function carbonToAzureDate(Carbon $carbon): string
     {
-        return $carbon->format(self::AZURE_DATE_FORMAT);
+        return $carbon->format(\DateTimeInterface::RFC7231);
     }
     //endregion Protected Methods
 }
