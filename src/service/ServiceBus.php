@@ -7,6 +7,7 @@ use yii\base\Component;
 use yii\base\InvalidConfigException;
 use yii\helpers\ArrayHelper;
 use yii\httpclient\Client;
+use yii\httpclient\CurlTransport;
 use yii\httpclient\Exception;
 use yii\httpclient\Request;
 use yii\httpclient\RequestEvent;
@@ -17,8 +18,8 @@ class ServiceBus extends Component
     //region Constants
     public const  PEEK_LOCK                = 'POST';
     public const  RECEIVE_DELETE           = 'DELETE';
-    private const SAS_AUTHORIZATION_FORMAT = 'SharedAccessSignature sig=%s&se=%s&skn=%s&sr=%s';
     private const HEADER_AUTHENTICATION    = 'authorization';
+    private const SAS_AUTHORIZATION_FORMAT = 'SharedAccessSignature sig=%s&se=%s&skn=%s&sr=%s';
     //endregion Constants
 
     //region Public Properties
@@ -35,15 +36,21 @@ class ServiceBus extends Component
     //endregion Private Properties
 
     //region Initialization
-    /**
-     * @throws InvalidConfigException
-     */
     public function init(): void
     {
         parent::init();
 
-        $this->httpClient = new Client(['baseUrl' => sprintf('https://%s.%s', $this->serviceBusNamespace, $this->environment)]);
+        $this->httpClient = new Client(
+            [
+                'transport'     => CurlTransport::class,
+                'baseUrl'       => sprintf('https://%s.%s', $this->serviceBusNamespace, $this->environment),
+                'requestConfig' => [
+                    'format' => Client::FORMAT_JSON,
+                ],
+            ]
+        );
 
+        $this->httpClient->on(Request::EVENT_AFTER_SEND, [$this, 'retryHandler']);
         $this->httpClient->on(Request::EVENT_BEFORE_SEND, [$this, 'authorizationHeaderHandler']);
     }
     //endregion Initialization
@@ -130,7 +137,7 @@ class ServiceBus extends Component
                 }
             }
         } else {
-            throw new Exception($response->statusCode);
+            throw new Exception($response->statusCode . ' ' . $response->getContent());
         }
 
         return $message;
@@ -180,6 +187,12 @@ class ServiceBus extends Component
     public function authorizationHeaderHandler(RequestEvent $requestEvent): void
     {
         $requestEvent->request->headers->add(self::HEADER_AUTHENTICATION, $this->generateAuthorizationToken($requestEvent->request->getFullUrl()));
+    }
+
+    public function retryHandler(RequestEvent $event)
+    {
+        if (!$event->response->isOk) {
+        }
     }
     //endregion Events Handler
 
