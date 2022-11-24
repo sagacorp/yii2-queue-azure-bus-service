@@ -7,34 +7,35 @@ use yii\base\Component;
 use yii\base\InvalidConfigException;
 use yii\helpers\ArrayHelper;
 use yii\httpclient\Client;
+use yii\httpclient\CurlTransport;
 use yii\httpclient\Exception;
-use yii\httpclient\Request;
 use yii\httpclient\RequestEvent;
 use yii\httpclient\Response;
 
 class ServiceBus extends Component
 {
-    //region Constants
-    public const  PEEK_LOCK                = 'POST';
-    public const  RECEIVE_DELETE           = 'DELETE';
+    // region Constants
+    public const  PEEK_LOCK = 'POST';
+    private const HEADER_AUTHENTICATION = 'authorization';
     private const SAS_AUTHORIZATION_FORMAT = 'SharedAccessSignature sig=%s&se=%s&skn=%s&sr=%s';
-    private const HEADER_AUTHENTICATION    = 'authorization';
-    //endregion Constants
+    // endregion Constants
 
-    //region Public Properties
-    public string $environment   = 'servicebus.windows.net';
+    // region Public Properties
+    public string $environment = 'servicebus.windows.net';
     public string $queue;
+    public int $requestMaxRetries = 10;
     public string $serviceBusNamespace;
     public string $sharedAccessKey;
     public string $sharedAccessKeyName;
-    public int    $tokenDuration = 3600;
-    //endregion Public Properties
+    public int $tokenDuration = 3600;
+    public string $to;
+    // endregion Public Properties
 
-    //region Private Properties
+    // region Private Properties
     private Client $httpClient;
-    //endregion Private Properties
+    // endregion Private Properties
 
-    //region Initialization
+    // region Initialization
     /**
      * @throws InvalidConfigException
      */
@@ -42,13 +43,20 @@ class ServiceBus extends Component
     {
         parent::init();
 
-        $this->httpClient = new Client(['baseUrl' => sprintf('https://%s.%s', $this->serviceBusNamespace, $this->environment)]);
+        $this->httpClient = new Client([
+            'baseUrl' => sprintf('https://%s.%s', $this->serviceBusNamespace, $this->environment),
+            'transport' => CurlTransport::class,
+            'requestConfig' => [
+                'class' => Request::class,
+                'maxRetries' => $this->requestMaxRetries,
+            ],
+        ]);
 
         $this->httpClient->on(Request::EVENT_BEFORE_SEND, [$this, 'authorizationHeaderHandler']);
     }
-    //endregion Initialization
+    // endregion Initialization
 
-    //region Public Methods
+    // region Public Methods
     /**
      * Deletes a brokered message.
      *
@@ -62,7 +70,7 @@ class ServiceBus extends Component
 
         $request = $this->httpClient->delete($lockLocationPath);
 
-        $request->send();
+        $request->sendAndRetryOnFailure(['200']);
     }
 
     /**
@@ -88,11 +96,10 @@ class ServiceBus extends Component
 
         $request->headers->add('content-length', 0);
 
-        $response = $request->send();
+        $response = $request->sendAndRetryOnFailure(['204', '200', '201']);
+        $message = null;
 
-        if ($response->statusCode === '204') {
-            $message = null;
-        } elseif ($response->statusCode === '200' || $response->statusCode === '201') {
+        if (\in_array($response->statusCode, ['200', '201'], true)) {
             $headers = [];
 
             foreach ($response->headers as $key => $value) {
@@ -103,10 +110,10 @@ class ServiceBus extends Component
 
             $message = new Message(
                 [
-                    'body'        => $response->getContent(),
+                    'body' => $response->getContent(),
                     'contentType' => ArrayHelper::remove($headers, 'content-type'),
-                    'date'        => ArrayHelper::remove($headers, 'date'),
-                    'location'    => ArrayHelper::remove($headers, 'location'),
+                    'date' => ArrayHelper::remove($headers, 'date'),
+                    'location' => ArrayHelper::remove($headers, 'location'),
                 ]
             );
 
@@ -129,8 +136,6 @@ class ServiceBus extends Component
                     $message->setProperty($headerKey, $value);
                 }
             }
-        } else {
-            throw new Exception($response->statusCode);
         }
 
         return $message;
@@ -166,24 +171,18 @@ class ServiceBus extends Component
             }
         }
 
-        $response = $request->send();
-
-        if ('201' !== $response->statusCode) {
-            throw new Exception($response->toString());
-        }
-
-        return $response;
+        return $request->sendAndRetryOnFailure(['201']);
     }
-    //endregion Public Methods
+    // endregion Public Methods
 
-    //region Events Handler
+    // region Events Handler
     public function authorizationHeaderHandler(RequestEvent $requestEvent): void
     {
         $requestEvent->request->headers->add(self::HEADER_AUTHENTICATION, $this->generateAuthorizationToken($requestEvent->request->getFullUrl()));
     }
-    //endregion Events Handler
+    // endregion Events Handler
 
-    //region Protected Methods
+    // region Protected Methods
     /**
      * @param string $url
      *
@@ -191,10 +190,10 @@ class ServiceBus extends Component
      */
     protected function generateAuthorizationToken(string $url): string
     {
-        $expiry     = time() + $this->tokenDuration;
+        $expiry = time() + $this->tokenDuration;
         $encodedUrl = $this->lowerUrlEncode($url);
-        $scope      = $encodedUrl . "\n" . $expiry;
-        $signature  = base64_encode(hash_hmac('sha256', $scope, $this->sharedAccessKey, true));
+        $scope = $encodedUrl . "\n" . $expiry;
+        $signature = base64_encode(hash_hmac('sha256', $scope, $this->sharedAccessKey, true));
 
         return sprintf(
             self::SAS_AUTHORIZATION_FORMAT,
@@ -215,5 +214,5 @@ class ServiceBus extends Component
             urlencode($str)
         );
     }
-    //endregion Protected Methods
+    // endregion Protected Methods
 }
