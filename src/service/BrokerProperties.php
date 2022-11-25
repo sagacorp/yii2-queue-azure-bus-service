@@ -3,7 +3,6 @@
 namespace sagacorp\queue\azure\service;
 
 use Carbon\Carbon;
-use Carbon\CarbonTimeZone;
 use yii\base\Model;
 
 /**
@@ -13,7 +12,7 @@ use yii\base\Model;
  */
 class BrokerProperties extends Model
 {
-    //region Public Properties
+    // region Public Properties
     /**
      * The correlation ID.
      */
@@ -66,24 +65,24 @@ class BrokerProperties extends Model
      * The to.
      */
     public ?string $to = null;
-    //endregion Public Properties
+    // endregion Public Properties
 
-    //region Private Properties
+    // region Private Properties
     /**
      * The enqueued time.
      */
-    private ?Carbon $enqueuedTimeUtc;
+    private ?Carbon $enqueuedTimeUtc = null;
     /**
      * The locked until time.
      */
-    private ?Carbon $lockedUntilUtc;
+    private ?Carbon $lockedUntilUtc = null;
     /**
      * The scheduled enqueue time.
      */
-    private ?Carbon $scheduledEnqueueTimeUtc;
-    //endregion Private Properties
+    private ?Carbon $scheduledEnqueueTimeUtc = null;
+    // endregion Private Properties
 
-    //region Initialization
+    // region Initialization
     public function init(): void
     {
         parent::init();
@@ -102,16 +101,16 @@ class BrokerProperties extends Model
         $values = [];
 
         $settableProperties = [
-            'CorrelationId'           => 'correlationId',
-            'SessionId'               => 'sessionId',
-            'MessageId'               => 'messageId',
-            'Label'                   => 'label',
-            'ReplyTo'                 => 'replyTo',
-            'TimeToLive'              => 'timeToLive',
-            'To'                      => 'to',
+            'CorrelationId' => 'correlationId',
+            'SessionId' => 'sessionId',
+            'MessageId' => 'messageId',
+            'Label' => 'label',
+            'ReplyTo' => 'replyTo',
+            'TimeToLive' => 'timeToLive',
+            'To' => 'to',
             'ScheduledEnqueueTimeUtc' => 'scheduledEnqueueTimeUtc',
-            'ReplyToSessionId'        => 'replyToSessionId',
-            'PartitionKey'            => 'partitionKey',
+            'ReplyToSessionId' => 'replyToSessionId',
+            'PartitionKey' => 'partitionKey',
         ];
 
         foreach ($settableProperties as $key => $value) {
@@ -122,9 +121,9 @@ class BrokerProperties extends Model
 
         return (string) \json_encode($values, JSON_THROW_ON_ERROR);
     }
-    //endregion Initialization
+    // endregion Initialization
 
-    //region Getters/Setters
+    // region Getters/Setters
     public function getEnqueuedTimeUtc(): ?Carbon
     {
         return $this->enqueuedTimeUtc;
@@ -135,14 +134,14 @@ class BrokerProperties extends Model
         return $this->lockedUntilUtc;
     }
 
-    public function setDelay(int $value): void
-    {
-        $this->setScheduledEnqueueTimeUtc(Carbon::now()->addSeconds($value)->setTimezone('UTC'));
-    }
-
     public function getScheduledEnqueueTimeUtc(): ?Carbon
     {
         return $this->scheduledEnqueueTimeUtc;
+    }
+
+    public function setDelay(int $value): void
+    {
+        $this->setScheduledEnqueueTimeUtc(Carbon::now()->addSeconds($value)->setTimezone('UTC'));
     }
 
     public function setEnqueuedTimeUtc(Carbon|string $enqueuedTimeUtc): void
@@ -171,9 +170,16 @@ class BrokerProperties extends Model
 
         $this->scheduledEnqueueTimeUtc = $scheduledEnqueueTimeUtc;
     }
-    //endregion Getters/Setters
+    // endregion Getters/Setters
 
-    //region Protected Methods
+    // region Public Methods
+    public function isTo(string $id): bool
+    {
+        return $this->to === $id;
+    }
+    // endregion Public Methods
+
+    // region Protected Methods
     protected function azureDateToCarbon(string $date): ?Carbon
     {
         return Carbon::parse($date, 'UTC') ?: null;
@@ -183,5 +189,5 @@ class BrokerProperties extends Model
     {
         return $carbon->format(\DateTimeInterface::RFC7231);
     }
-    //endregion Protected Methods
+    // endregion Protected Methods
 }

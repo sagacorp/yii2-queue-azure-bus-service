@@ -13,14 +13,23 @@ use yii\di\Instance;
  */
 class Queue extends \yii\queue\cli\Queue
 {
-    //region Public Properties
+    // region Public Properties
+    /**
+     * use this property to filter job execution on a specific id
+     * You can use this property when you need to run multiple environments with the same queue at the same time, multiple locals envionnements for example.
+     *
+     * @see BrokerProperties::$to
+     *
+     * @var string|null
+     */
+    public ?string $id = null;
     /**
      * @var ServiceBus
      */
     public $serviceBus = 'serviceBus';
-    //endregion Public Properties
+    // endregion Public Properties
 
-    //region Initialization
+    // region Initialization
     /**
      * @throws \yii\base\InvalidConfigException
      */
@@ -32,10 +41,9 @@ class Queue extends \yii\queue\cli\Queue
 
         $this->serviceBus = Instance::ensure($this->serviceBus, ServiceBus::class);
     }
-    //endregion Initialization
+    // endregion Initialization
 
-    //region Public Methods
-
+    // region Public Methods
     /**
      * Listens queue and runs each job.
      *
@@ -54,6 +62,9 @@ class Queue extends \yii\queue\cli\Queue
                     $message = $this->serviceBus->receiveMessage(ServiceBus::PEEK_LOCK, $timeout);
 
                     if ($message !== null && $message->brokerProperties !== null) {
+                        if ($message->brokerProperties->to && !$message->brokerProperties->isTo($this->id)) {
+                            continue;
+                        }
                         if ($this->handleMessage($message->brokerProperties->messageId, $message->body, $message->brokerProperties->timeToLive, $message->brokerProperties->deliveryCount)) {
                             $this->serviceBus->deleteMessage($message);
                         }
@@ -75,7 +86,7 @@ class Queue extends \yii\queue\cli\Queue
     {
         throw new NotSupportedException('Status is not supported in the driver.');
     }
-    //endregion Public Methods
+    // endregion Public Methods
 
     //region Protected Methods
     /**
@@ -92,12 +103,13 @@ class Queue extends \yii\queue\cli\Queue
     {
         $azureMessage = new Message(
             [
-                'body'             => $message,
-                'contentType'      => 'application/vnd.microsoft.servicebus.yml',
+                'body' => $message,
+                'contentType' => 'application/vnd.microsoft.servicebus.yml',
                 'brokerProperties' => new BrokerProperties(
                     [
                         'timeToLive' => $ttr,
-                        'delay'      => $delay,
+                        'delay' => $delay,
+                        'to' => $this->id,
                     ]
                 ),
             ]
@@ -107,5 +119,5 @@ class Queue extends \yii\queue\cli\Queue
 
         return $azureMessage->brokerProperties->messageId;
     }
-    //endregion Protected Methods
+    // endregion Protected Methods
 }
