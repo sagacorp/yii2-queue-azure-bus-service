@@ -4,6 +4,9 @@
 #phpstorm project files
 .idea/*
 
+vendor/
+composer.lock
+
 assets/*
 !assets/.gitignore
 protected/runtime/*
