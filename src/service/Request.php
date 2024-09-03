@@ -3,8 +3,10 @@
 namespace sagacorp\queue\azure\service;
 
 use yii\httpclient\Exception as HttpClientException;
+use yii\httpclient\Request as BaseRequest;
+use yii\httpclient\Response;
 
-class Request extends \yii\httpclient\Request
+class Request extends BaseRequest
 {
     // region Public Properties
     public int $maxRetries;
@@ -18,7 +20,7 @@ class Request extends \yii\httpclient\Request
     /**
      * @throws HttpClientException
      */
-    public function sendAndRetryOnFailure(array $successStatusCodes): \yii\httpclient\Response
+    public function sendAndRetryOnFailure(array $successStatusCodes): Response
     {
         try {
             $response = $this->send();

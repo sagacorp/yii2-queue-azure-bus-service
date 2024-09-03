@@ -2,6 +2,7 @@
 
 namespace sagacorp\queue\azure\service;
 
+use Carbon\Carbon;
 use JsonException;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
@@ -27,8 +28,8 @@ class ServiceBus extends Component
     public string $serviceBusNamespace;
     public string $sharedAccessKey;
     public string $sharedAccessKeyName;
-    public int $tokenDuration = 3600;
     public string $to;
+    public int $tokenDuration = 3600;
     // endregion Public Properties
 
     // region Private Properties
@@ -36,9 +37,6 @@ class ServiceBus extends Component
     // endregion Private Properties
 
     // region Initialization
-    /**
-     * @throws InvalidConfigException
-     */
     public function init(): void
     {
         parent::init();
@@ -52,7 +50,7 @@ class ServiceBus extends Component
             ],
         ]);
 
-        $this->httpClient->on(Request::EVENT_BEFORE_SEND, [$this, 'authorizationHeaderHandler']);
+        $this->httpClient->on(Request::EVENT_BEFORE_SEND, fn (RequestEvent $requestEvent) => $this->authorizationHeaderHandler($requestEvent));
     }
     // endregion Initialization
 
@@ -76,17 +74,11 @@ class ServiceBus extends Component
     /**
      * Receives a message.
      *
-     * @param string   $peekMethod
-     * @param int|null $timeout
-     *
-     * @throws Exception
      * @throws InvalidConfigException
-     * @throws JsonException
-     * @return Message|null
      */
-    public function receiveMessage(string $peekMethod, int $timeout = null): ?Message
+    public function receiveMessage(string $peekMethod, int $timeout = null, ?string $queue = null): ?Message
     {
-        $url = [sprintf('%s/messages/head', $this->queue)];
+        $url = [sprintf('%s/messages/head', $queue ?? $this->queue)];
 
         if (null !== $timeout) {
             $url['timeout'] = $timeout;
@@ -109,12 +101,10 @@ class ServiceBus extends Component
             }
 
             $message = new Message(
-                [
-                    'body' => $response->getContent(),
-                    'contentType' => ArrayHelper::remove($headers, 'content-type'),
-                    'date' => ArrayHelper::remove($headers, 'date'),
-                    'location' => ArrayHelper::remove($headers, 'location'),
-                ]
+                $response->getContent(),
+                ArrayHelper::remove($headers, 'content-type'),
+                Carbon::parse(ArrayHelper::remove($headers, 'date')) ?? null,
+                ArrayHelper::remove($headers, 'location'),
             );
 
             $headerBrokerProperties = ArrayHelper::remove($headers, 'brokerproperties');
@@ -122,10 +112,23 @@ class ServiceBus extends Component
             if ($headerBrokerProperties) {
                 try {
                     $headerBrokerProperties = json_decode((string) $headerBrokerProperties, true, 512, JSON_THROW_ON_ERROR);
-                    $headerBrokerProperties = array_flip((array_map('lcfirst', array_flip($headerBrokerProperties))));
 
-                    $message->brokerProperties = new BrokerProperties();
-                    $message->brokerProperties->setAttributes($headerBrokerProperties, false);
+                    $message->brokerProperties = new BrokerProperties(
+                        $headerBrokerProperties['CorrelationId'] ?? null,
+                        $headerBrokerProperties['SessionId'] ?? null,
+                        $headerBrokerProperties['DeliveryCount'] ?? 1,
+                        Carbon::parse($headerBrokerProperties['LockedUntil'] ?? null, 'UTC') ?? null,
+                        $headerBrokerProperties['LockToken'] ?? null,
+                        $headerBrokerProperties['MessageId'] ?? null,
+                        $headerBrokerProperties['Label'] ?? null,
+                        $headerBrokerProperties['ReplyTo'] ?? null,
+                        $headerBrokerProperties['SequenceNumber'] ?? null,
+                        $headerBrokerProperties['TimeToLive'] ?? 1,
+                        $headerBrokerProperties['To'] ?? null,
+                        Carbon::parse($headerBrokerProperties['ScheduledEnqueueTimeUtc'] ?? null, 'UTC') ?? null,
+                        $headerBrokerProperties['ReplyToSessionId'] ?? null,
+                        $headerBrokerProperties['PartitionKey'] ?? null,
+                    );
                 } catch (\JsonException $e) {
                     \Yii::error($e);
                 }
@@ -144,15 +147,12 @@ class ServiceBus extends Component
     /**
      * Sends a brokered message.
      *
-     * @param Message $message The brokered message
-     *
      * @throws JsonException
      * @throws Exception|Exception
-     * @return Response
      */
-    public function sendMessage(Message $message): Response
+    public function sendMessage(Message $message, ?string $queue = null): Response
     {
-        $path = sprintf('%s/messages', $this->queue);
+        $path = sprintf('%s/messages', $queue ?? $this->queue);
 
         $request = $this->httpClient->post($path, $message->body);
 
@@ -161,28 +161,24 @@ class ServiceBus extends Component
         }
 
         if ($message->brokerProperties !== null) {
-            $request->headers->set('BrokerProperties', (string) $message->brokerProperties);
+            $request->headers->set('BrokerProperties', json_encode($message->brokerProperties, JSON_THROW_ON_ERROR));
         }
 
-        if (!empty($message->properties)) {
-            foreach ($message->properties as $key => $value) {
-                $value = json_encode($value, JSON_THROW_ON_ERROR);
-                $request->headers->set($key, $value);
-            }
+        foreach ($message->properties as $key => $value) {
+            $value = json_encode($value, JSON_THROW_ON_ERROR);
+            $request->headers->set($key, $value);
         }
 
         return $request->sendAndRetryOnFailure(['201']);
     }
     // endregion Public Methods
 
-    // region Events Handler
-    public function authorizationHeaderHandler(RequestEvent $requestEvent): void
+    // region Protected Methods
+    protected function authorizationHeaderHandler(RequestEvent $requestEvent): void
     {
         $requestEvent->request->headers->add(self::HEADER_AUTHENTICATION, $this->generateAuthorizationToken($requestEvent->request->getFullUrl()));
     }
-    // endregion Events Handler
 
-    // region Protected Methods
     /**
      * @param string $url
      *
@@ -208,9 +204,7 @@ class ServiceBus extends Component
     {
         return preg_replace_callback(
             '/%[0-9A-F]{2}/',
-            static function (array $matches) {
-                return strtolower($matches[0]);
-            },
+            static fn (array $matches) => strtolower($matches[0]),
             urlencode($str)
         );
     }

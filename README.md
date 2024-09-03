@@ -40,7 +40,7 @@ return [
             'serviceBusNamespace' => 'your service bus namespace',
             'sharedAccessKey'     => 'your shared access key to access the service bus queue',
             'sharedAccessKeyName' => 'your shared access key name',
-            'queue'               => 'the name of your Aruez Service Bus queue',
+            'queue'               => 'the name of your Azure Service Bus default queue',
         ],
     ]
 ];

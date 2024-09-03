@@ -13,16 +13,16 @@ use yii\queue\cli\Command as CliCommand;
  */
 class Command extends CliCommand
 {
-    //region Controllers Actions
+    // region Controllers Actions
     /**
      */
-    public function actionListen(): void
+    public function actionListen(?string $queue = null): void
     {
-        $this->queue->run(true);
+        $this->queue->run(true, queue: $queue);
     }
-    //endregion Controllers Actions
+    // endregion Controllers Actions
 
-    //region Protected Methods
+    // region Protected Methods
     /**
      * @inheritdoc
      */
@@ -30,5 +30,5 @@ class Command extends CliCommand
     {
         return $actionID === 'listen';
     }
-    //endregion Protected Methods
+    // endregion Protected Methods
 }
