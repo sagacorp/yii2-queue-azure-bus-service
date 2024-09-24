@@ -22,6 +22,7 @@ class ServiceBus extends Component
     // endregion Constants
 
     // region Public Properties
+    public bool $acceptMessage = true;
     public string $environment = 'servicebus.windows.net';
     public string $queue;
     public int $requestMaxRetries = 10;

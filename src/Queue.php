@@ -9,7 +9,6 @@ use yii\base\InvalidConfigException;
 use yii\base\NotSupportedException;
 use yii\di\Instance;
 use yii\httpclient\Exception;
-use yii\queue\PushEvent;
 
 class Queue extends \yii\queue\cli\Queue
 {
@@ -24,7 +23,7 @@ class Queue extends \yii\queue\cli\Queue
     public string $queue = 'default';
     /** @var ServiceBus[] */
     public array $queues = [
-        'default' => 'serviceBus'
+        'default' => 'serviceBus',
     ];
     // endregion Public Properties
 
@@ -45,6 +44,26 @@ class Queue extends \yii\queue\cli\Queue
     // endregion Initialization
 
     // region Public Methods
+    public function push($job): ?string
+    {
+        $defaultQueue = $this->queue;
+
+        if (
+            $job instanceof AzureJobInterface
+            && ($dedicatedQueue = $job->getQueue())
+            && isset($this->queues[$dedicatedQueue])
+            && $this->queues[$dedicatedQueue]->acceptMessage
+        ) {
+            $this->queue = $dedicatedQueue;
+        }
+
+        $result = parent::push($job);
+
+        $this->queue = $defaultQueue;
+
+        return $result;
+    }
+
     /**
      * Listens queue and runs each job.
      *
@@ -58,21 +77,6 @@ class Queue extends \yii\queue\cli\Queue
     public function run(bool $repeat, ?string $queue = null, int $timeout = 30): ?int
     {
         return $this->runWorker(fn (callable $canContinue) => $this->processWorker($canContinue, $repeat, $queue ?? $this->queue, $timeout));
-    }
-
-    public function push($job): ?string
-    {
-        $defaultQueue = $this->queue;
-
-        if ($job instanceof AzureJobInterface && ($dedicatedQueue = $job->getQueue()) && isset($this->queues[$dedicatedQueue])) {
-            $this->queue = $dedicatedQueue;
-        }
-
-        $result = parent::push($job);
-
-        $this->queue = $defaultQueue;
-
-        return $result;
     }
 
     /**
