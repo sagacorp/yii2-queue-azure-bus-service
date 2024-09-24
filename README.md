@@ -30,19 +30,22 @@ Then, configure yii2 queue, and the service bus like the following:
 ```php
 return [
     'components' => [
-        'queue'                   => [
+        'queue' => [
             'class'      => \saga\queue\azure\Queue::class,
             'as log'     => \yii\queue\LogBehavior,
             'serializer' => \yii\queue\serializers\JsonSerializer::class,
+            'queue'      => 'default', // Optional
+            'queues'     => [
+                'default' => [ // name of the 'queue' attribute
+                    'class'               => \saga\queue\azure\service\ServiceBus::class,
+                    'serviceBusNamespace' => 'your service bus namespace',
+                    'sharedAccessKey'     => 'your shared access key to access the service bus queue',
+                    'sharedAccessKeyName' => 'your shared access key name',
+                    'queue'               => 'the name of your Azure Service Bus queue (can be different than the name used as config key)',
+                ],
+            ],
         ],
-        'serviceBus'              => [
-            'class'               => \saga\queue\azure\service\ServiceBus::class,
-            'serviceBusNamespace' => 'your service bus namespace',
-            'sharedAccessKey'     => 'your shared access key to access the service bus queue',
-            'sharedAccessKeyName' => 'your shared access key name',
-            'queue'               => 'the name of your Azure Service Bus default queue',
-        ],
-    ]
+    ],
 ];
  ```       
       

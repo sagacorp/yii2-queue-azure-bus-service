@@ -76,9 +76,9 @@ class ServiceBus extends Component
      *
      * @throws InvalidConfigException
      */
-    public function receiveMessage(string $peekMethod, int $timeout = null, ?string $queue = null): ?Message
+    public function receiveMessage(string $peekMethod, int $timeout = null): ?Message
     {
-        $url = [sprintf('%s/messages/head', $queue ?? $this->queue)];
+        $url = [sprintf('%s/messages/head', $this->queue)];
 
         if (null !== $timeout) {
             $url['timeout'] = $timeout;
@@ -202,11 +202,7 @@ class ServiceBus extends Component
 
     protected function lowerUrlEncode($str): ?string
     {
-        return preg_replace_callback(
-            '/%[0-9A-F]{2}/',
-            static fn (array $matches) => strtolower($matches[0]),
-            urlencode($str)
-        );
+        return preg_replace_callback('/%[0-9A-F]{2}/', static fn (array $matches) => strtolower($matches[0]), urlencode($str));
     }
     // endregion Protected Methods
 }
