@@ -177,7 +177,7 @@ class ServiceBus extends Component
     // region Protected Methods
     protected function authorizationHeaderHandler(RequestEvent $requestEvent): void
     {
-        $requestEvent->request->headers->add(self::HEADER_AUTHENTICATION, $this->generateAuthorizationToken($requestEvent->request->getFullUrl()));
+        $requestEvent->request->headers->set(self::HEADER_AUTHENTICATION, $this->generateAuthorizationToken($requestEvent->request->getFullUrl()));
     }
 
     /**
