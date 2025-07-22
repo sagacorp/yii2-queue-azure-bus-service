@@ -9,17 +9,13 @@ use yii\queue\cli\Command as CliCommand;
  */
 class Command extends CliCommand
 {
-    // region Controllers Actions
     public function actionListen(?string $queue = null): void
     {
         $this->queue->run(true, $queue);
     }
-    // endregion Controllers Actions
 
-    // region Protected Methods
     protected function isWorkerAction($actionID): bool
     {
-        return $actionID === 'listen';
+        return 'listen' === $actionID;
     }
-    // endregion Protected Methods
 }

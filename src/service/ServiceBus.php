@@ -3,7 +3,6 @@
 namespace sagacorp\queue\azure\service;
 
 use Carbon\Carbon;
-use JsonException;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
 use yii\helpers\ArrayHelper;
@@ -15,13 +14,11 @@ use yii\httpclient\Response;
 
 class ServiceBus extends Component
 {
-    // region Constants
-    public const  PEEK_LOCK = 'POST';
-    private const HEADER_AUTHENTICATION = 'authorization';
-    private const SAS_AUTHORIZATION_FORMAT = 'SharedAccessSignature sig=%s&se=%s&skn=%s&sr=%s';
-    // endregion Constants
+    public const string PEEK_LOCK = 'POST';
 
-    // region Public Properties
+    private const string HEADER_AUTHENTICATION = 'authorization';
+    private const string SAS_AUTHORIZATION_FORMAT = 'SharedAccessSignature sig=%s&se=%s&skn=%s&sr=%s';
+
     public bool $acceptMessage = true;
     public string $environment = 'servicebus.windows.net';
     public string $queue;
@@ -31,13 +28,25 @@ class ServiceBus extends Component
     public string $sharedAccessKeyName;
     public string $to;
     public int $tokenDuration = 3600;
-    // endregion Public Properties
 
-    // region Private Properties
     private Client $httpClient;
-    // endregion Private Properties
 
-    // region Initialization
+    /**
+     * Deletes a brokered message.
+     *
+     * @param Message $message The brokered message
+     *
+     * @throws Exception
+     */
+    public function deleteMessage(Message $message): void
+    {
+        $lockLocationPath = parse_url((string) $message->location, PHP_URL_PATH);
+
+        $request = $this->httpClient->delete($lockLocationPath);
+
+        $request->sendAndRetryOnFailure(['200']);
+    }
+
     public function init(): void
     {
         parent::init();
@@ -53,31 +62,13 @@ class ServiceBus extends Component
 
         $this->httpClient->on(Request::EVENT_BEFORE_SEND, fn (RequestEvent $requestEvent) => $this->authorizationHeaderHandler($requestEvent));
     }
-    // endregion Initialization
-
-    // region Public Methods
-    /**
-     * Deletes a brokered message.
-     *
-     * @param Message $message The brokered message
-     *
-     * @throws Exception
-     */
-    public function deleteMessage(Message $message): void
-    {
-        $lockLocationPath = parse_url($message->location, PHP_URL_PATH);
-
-        $request = $this->httpClient->delete($lockLocationPath);
-
-        $request->sendAndRetryOnFailure(['200']);
-    }
 
     /**
      * Receives a message.
      *
      * @throws InvalidConfigException
      */
-    public function receiveMessage(string $peekMethod, int $timeout = null): ?Message
+    public function receiveMessage(string $peekMethod, ?int $timeout = null): ?Message
     {
         $url = [sprintf('%s/messages/head', $this->queue)];
 
@@ -148,7 +139,7 @@ class ServiceBus extends Component
     /**
      * Sends a brokered message.
      *
-     * @throws JsonException
+     * @throws \JsonException
      * @throws Exception|Exception
      */
     public function sendMessage(Message $message, ?string $queue = null): Response
@@ -157,11 +148,11 @@ class ServiceBus extends Component
 
         $request = $this->httpClient->post($path, $message->body);
 
-        if ($message->contentType !== null) {
+        if (null !== $message->contentType) {
             $request->headers->set('content-type', $message->contentType);
         }
 
-        if ($message->brokerProperties !== null) {
+        if ($message->brokerProperties instanceof BrokerProperties) {
             $request->headers->set('BrokerProperties', json_encode($message->brokerProperties, JSON_THROW_ON_ERROR));
         }
 
@@ -172,19 +163,12 @@ class ServiceBus extends Component
 
         return $request->sendAndRetryOnFailure(['201']);
     }
-    // endregion Public Methods
 
-    // region Protected Methods
     protected function authorizationHeaderHandler(RequestEvent $requestEvent): void
     {
         $requestEvent->request->headers->set(self::HEADER_AUTHENTICATION, $this->generateAuthorizationToken($requestEvent->request->getFullUrl()));
     }
 
-    /**
-     * @param string $url
-     *
-     * @return string
-     */
     protected function generateAuthorizationToken(string $url): string
     {
         $expiry = time() + $this->tokenDuration;
@@ -203,7 +187,6 @@ class ServiceBus extends Component
 
     protected function lowerUrlEncode($str): ?string
     {
-        return preg_replace_callback('/%[0-9A-F]{2}/', static fn (array $matches) => strtolower($matches[0]), urlencode($str));
+        return preg_replace_callback('/%[0-9A-F]{2}/', static fn (array $matches): string => strtolower((string) $matches[0]), urlencode((string) $str));
     }
-    // endregion Protected Methods
 }

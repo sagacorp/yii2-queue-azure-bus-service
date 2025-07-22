@@ -6,7 +6,6 @@ use Carbon\Carbon;
 
 class Message
 {
-    // region Initialization
     public function __construct(
         public ?string $body,
         public ?string $contentType = 'application/vnd.microsoft.servicebus.yml',
@@ -14,11 +13,8 @@ class Message
         public ?string $location = null,
         public ?BrokerProperties $brokerProperties = null,
         public array $properties = [],
-    ) {
-    }
-    // endregion Initialization
+    ) {}
 
-    // region Getters/Setters
     public function getProperty(string $propertyName): mixed
     {
         return $this->properties[strtolower($propertyName)] ?? null;
@@ -28,5 +24,4 @@ class Message
     {
         $this->properties[strtolower($propertyName)] = $propertyValue;
     }
-    // endregion Getters/Setters
 }

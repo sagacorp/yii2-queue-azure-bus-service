@@ -13,12 +13,15 @@
     }
   ],
   "require": {
-    "yiisoft/yii2-queue": "^2.0",
+    "php": "^8.3",
+    "nesbot/carbon": "^2.0 | ^3.0",
     "yiisoft/yii2-httpclient": "^2.0",
-    "nesbot/carbon": "^2.0 | ^3.0"
+    "yiisoft/yii2-queue": "^2.0"
   },
   "require-dev": {
-    "roave/security-advisories": "dev-latest"
+    "roave/security-advisories": "dev-latest",
+    "rector/rector": "^2.1",
+    "laravel/pint": "^1.24"
   },
   "autoload": {
     "psr-4": {
@@ -34,6 +37,7 @@
     }
   ],
   "config": {
+    "sort-packages": true,
     "allow-plugins": {
       "yiisoft/yii2-composer": true
     }

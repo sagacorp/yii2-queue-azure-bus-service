@@ -12,7 +12,6 @@ use yii\httpclient\Exception;
 
 class Queue extends \yii\queue\cli\Queue
 {
-    // region Public Properties
     /**
      * use this property to filter job execution on a specific id
      * You can use this property when you need to run multiple environments with the same queue at the same time, multiple locals environments for example.
@@ -21,16 +20,16 @@ class Queue extends \yii\queue\cli\Queue
      */
     public ?string $id = null;
     public string $queue = 'default';
+
     /** @var ServiceBus[] */
     public array $queues = [
         'default' => 'serviceBus',
     ];
-    // endregion Public Properties
 
-    // region Initialization
     /**
-     * @throws \yii\base\InvalidConfigException
+     * @throws InvalidConfigException
      */
+    #[\Override]
     public function init(): void
     {
         parent::init();
@@ -41,9 +40,8 @@ class Queue extends \yii\queue\cli\Queue
             $this->queues[$queue] = Instance::ensure($config, ServiceBus::class);
         }
     }
-    // endregion Initialization
 
-    // region Public Methods
+    #[\Override]
     public function push($job): ?string
     {
         $defaultQueue = $this->queue;
@@ -67,11 +65,13 @@ class Queue extends \yii\queue\cli\Queue
     /**
      * Listens queue and runs each job.
      *
-     * @param bool $repeat  whether to continue listening when queue is empty.
-     * @param int  $timeout number of seconds to wait for next message.
+     * @param bool $repeat  whether to continue listening when queue is empty
+     * @param int  $timeout number of seconds to wait for next message
      *
-     * @return null|int exit code.
-     * @internal for worker command only.
+     * @return null|int exit code
+     *
+     * @internal for worker command only
+     *
      * @since    2.0.2
      */
     public function run(bool $repeat, ?string $queue = null, int $timeout = 30): ?int
@@ -83,15 +83,12 @@ class Queue extends \yii\queue\cli\Queue
      * @param string $id of a job message
      *
      * @throws NotSupportedException
-     * @return void status code
      */
     public function status($id): void
     {
         throw new NotSupportedException('Status is not supported in the driver.');
     }
-    // endregion Public Methods
 
-    // region Protected Methods
     /**
      * @throws Exception
      * @throws InvalidConfigException
@@ -102,7 +99,7 @@ class Queue extends \yii\queue\cli\Queue
         while ($canContinue()) {
             $message = $this->queues[$queue]->receiveMessage(ServiceBus::PEEK_LOCK, $timeout);
 
-            if ($message !== null && $message->brokerProperties !== null) {
+            if (null !== $message && null !== $message->brokerProperties) {
                 if ($message->brokerProperties->to && !$message->brokerProperties->isTo($this->id)) {
                     continue;
                 }
@@ -116,14 +113,15 @@ class Queue extends \yii\queue\cli\Queue
     }
 
     /**
-     * @param       $message
-     * @param int   $ttr time to reserve in seconds
+     * @param int   $ttr      time to reserve in seconds
      * @param int   $delay
      * @param mixed $priority
+     * @param mixed $message
+     *
+     * @return string id of a job message
      *
      * @throws \JsonException
-     * @throws \yii\httpclient\Exception
-     * @return string id of a job message
+     * @throws Exception
      */
     protected function pushMessage($message, $ttr, $delay, $priority): string
     {
@@ -137,5 +135,4 @@ class Queue extends \yii\queue\cli\Queue
 
         return $azureMessage->brokerProperties->messageId;
     }
-    // endregion Protected Methods
 }

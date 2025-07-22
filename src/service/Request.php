@@ -8,15 +8,10 @@ use yii\httpclient\Response;
 
 class Request extends BaseRequest
 {
-    // region Public Properties
     public int $maxRetries;
-    // endregion Public Properties
 
-    // region Protected Properties
     protected int $attempts = 0;
-    // endregion Protected Properties
 
-    // region Public Methods
     /**
      * @throws HttpClientException
      */
@@ -48,9 +43,6 @@ class Request extends BaseRequest
         return $response;
     }
 
-    // endregion Public Methods
-
-    // region Protected Methods
     protected function canContinue(int $attempts): bool
     {
         return $attempts < $this->maxRetries;
@@ -60,5 +52,4 @@ class Request extends BaseRequest
     {
         return 4 ** $attempts;
     }
-    // endregion Protected Methods
 }

@@ -6,7 +6,6 @@ use Carbon\Carbon;
 
 class BrokerProperties implements \JsonSerializable
 {
-    // region Initialization
     public function __construct(
         public ?string $correlationId = null,
         public ?string $sessionId = null,
@@ -23,20 +22,11 @@ class BrokerProperties implements \JsonSerializable
         public ?string $replyToSessionId = null,
         public ?string $partitionKey = null,
     ) {
-        if ($this->messageId === null) {
+        if (null === $this->messageId) {
             $this->messageId = uniqid('', true);
         }
     }
-    // endregion Initialization
 
-    // region Getters/Setters
-    public function setDelay(int $value): void
-    {
-        $this->scheduledEnqueueTimeUtc = Carbon::now('UTC')->addSeconds($value);
-    }
-    // endregion Getters/Setters
-
-    // region Public Methods
     public function isTo(string $id): bool
     {
         return $this->to === $id;
@@ -56,5 +46,9 @@ class BrokerProperties implements \JsonSerializable
             'PartitionKey' => $this->partitionKey,
         ]);
     }
-    // endregion Public Methods
+
+    public function setDelay(int $value): void
+    {
+        $this->scheduledEnqueueTimeUtc = Carbon::now('UTC')->addSeconds($value);
+    }
 }
