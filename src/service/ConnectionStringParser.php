@@ -31,9 +31,7 @@ readonly class ConnectionStringParser
 
         return [
             ...$result,
-            'host' => $parsed['host'] ?? null,
-            'namespace' => isset($parsed['host']) ? explode('.', $parsed['host'], 2)[0] : null,
-            'queue' => isset($parsed['path']) ? trim($parsed['path'], '/') : null,
+            'host' => $parsed['host'] ?? '',
         ];
     }
 }

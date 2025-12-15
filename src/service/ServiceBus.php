@@ -14,8 +14,8 @@ use yii\httpclient\Response;
 
 class ServiceBus extends Component
 {
-    public const RECEIVE_MODE_PEEK_LOCK = 'peek-lock';
-    public const RECEIVE_MODE_RECEIVE_AND_DELETE = 'receive-and-delete';
+    public const string RECEIVE_MODE_PEEK_LOCK = 'peek-lock';
+    public const string RECEIVE_MODE_RECEIVE_AND_DELETE = 'receive-and-delete';
 
     private const string HEADER_AUTHENTICATION = 'authorization';
 
@@ -29,6 +29,7 @@ class ServiceBus extends Component
     public string $to;
     public int $tokenDuration = 3600;
 
+    private string $host;
     private Client $httpClient;
 
     /**
@@ -59,14 +60,15 @@ class ServiceBus extends Component
         if (isset($this->connectionString)) {
             $connectionString = (new ConnectionStringParser($this->connectionString))->parseConnectionString();
 
-            $this->namespace ??= $connectionString['namespace'] ?? '';
+            $this->host = $connectionString['host'];
             $this->sharedAccessKeyName ??= $connectionString['SharedAccessKeyName'] ?? '';
             $this->sharedAccessKey ??= $connectionString['SharedAccessKey'] ?? '';
-            $this->queue ??= $connectionString['queue'] ?? '';
+            $this->queue ??= $connectionString['EntityPath'] ?? '';
+        } else {
+            $this->host = "{$this->namespace}.servicebus.windows.net";
         }
-
         $this->httpClient = new Client([
-            'baseUrl' => sprintf('https://%s.servicebus.windows.net/%s', $this->namespace, $this->queue),
+            'baseUrl' => sprintf('https://%s/%s', $this->host, $this->queue),
             'transport' => CurlTransport::class,
             'requestConfig' => [
                 'class' => Request::class,
