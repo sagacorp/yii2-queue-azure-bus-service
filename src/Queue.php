@@ -12,6 +12,8 @@ use yii\httpclient\Exception;
 
 class Queue extends \yii\queue\cli\Queue
 {
+    public $commandClass = Command::class;
+
     /**
      * use this property to filter job execution on a specific id
      * You can use this property when you need to run multiple environments with the same queue at the same time, multiple locals environments for example.
@@ -19,47 +21,15 @@ class Queue extends \yii\queue\cli\Queue
      * @see BrokerProperties::$to
      */
     public ?string $id = null;
-    public string $queue = 'default';
 
-    /** @var ServiceBus[] */
-    public array $queues = [
-        'default' => 'serviceBus',
-    ];
+    /** @var array|ServiceBus|string */
+    public $serviceBus = 'serviceBus';
 
-    /**
-     * @throws InvalidConfigException
-     */
-    #[\Override]
-    public function init(): void
+    public function init()
     {
         parent::init();
 
-        $this->commandClass = Command::class;
-
-        foreach ($this->queues as $queue => $config) {
-            $this->queues[$queue] = Instance::ensure($config, ServiceBus::class);
-        }
-    }
-
-    #[\Override]
-    public function push($job): ?string
-    {
-        $defaultQueue = $this->queue;
-
-        if (
-            $job instanceof AzureJobInterface
-            && ($dedicatedQueue = $job->getQueue())
-            && isset($this->queues[$dedicatedQueue])
-            && $this->queues[$dedicatedQueue]->acceptMessage
-        ) {
-            $this->queue = $dedicatedQueue;
-        }
-
-        $result = parent::push($job);
-
-        $this->queue = $defaultQueue;
-
-        return $result;
+        $this->serviceBus = Instance::ensure($this->serviceBus, ServiceBus::class);
     }
 
     /**
@@ -74,9 +44,9 @@ class Queue extends \yii\queue\cli\Queue
      *
      * @since    2.0.2
      */
-    public function run(bool $repeat, ?string $queue = null, int $timeout = 30): ?int
+    public function run(bool $repeat, int $timeout = 10): ?int
     {
-        return $this->runWorker(fn (callable $canContinue) => $this->processWorker($canContinue, $repeat, $queue ?? $this->queue, $timeout));
+        return $this->runWorker(fn (callable $canContinue) => $this->processWorker($canContinue, $repeat, $timeout));
     }
 
     /**
@@ -94,17 +64,17 @@ class Queue extends \yii\queue\cli\Queue
      * @throws InvalidConfigException
      * @throws \JsonException
      */
-    protected function processWorker(callable $canContinue, bool $repeat, string $queue, int $timeout = 30): void
+    protected function processWorker(callable $canContinue, bool $repeat, int $timeout = 10): void
     {
         while ($canContinue()) {
-            $message = $this->queues[$queue]->receiveMessage(ServiceBus::PEEK_LOCK, $timeout);
+            $message = $this->serviceBus->receiveMessage($timeout);
 
             if (null !== $message && null !== $message->brokerProperties) {
                 if ($message->brokerProperties->to && !$message->brokerProperties->isTo($this->id)) {
                     continue;
                 }
                 if ($this->handleMessage($message->brokerProperties->messageId, $message->body, $message->brokerProperties->timeToLive, $message->brokerProperties->deliveryCount)) {
-                    $this->queues[$queue]->deleteMessage($message);
+                    $this->serviceBus->deleteMessage($message);
                 }
             } elseif (!$repeat) {
                 break;
@@ -131,7 +101,7 @@ class Queue extends \yii\queue\cli\Queue
 
         $azureMessage = new Message($message, brokerProperties: $brokerProperties);
 
-        $this->queues[$this->queue]->sendMessage($azureMessage);
+        $this->serviceBus->sendMessage($azureMessage);
 
         return $azureMessage->brokerProperties->messageId;
     }

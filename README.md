@@ -31,18 +31,20 @@ Then, configure yii2 queue, and the service bus like the following:
 return [
     'components' => [
         'queue' => [
-            'class'      => \saga\queue\azure\Queue::class,
-            'as log'     => \yii\queue\LogBehavior,
+            'class' => \saga\queue\azure\Queue::class,
+            'as log' => \yii\queue\LogBehavior,
             'serializer' => \yii\queue\serializers\JsonSerializer::class,
-            'queue'      => 'default', // Optional
-            'queues'     => [
-                'default' => [ // name of the 'queue' attribute
-                    'class'               => \saga\queue\azure\service\ServiceBus::class,
-                    'serviceBusNamespace' => 'your service bus namespace',
-                    'sharedAccessKey'     => 'your shared access key to access the service bus queue',
-                    'sharedAccessKeyName' => 'your shared access key name',
-                    'queue'               => 'the name of your Azure Service Bus queue (can be different than the name used as config key)',
-                ],
+            'serviceBus' => [
+                'class' => \saga\queue\azure\service\ServiceBus::class,
+
+                // Optional
+                'connectionString' => 'Endpoint=sb://(namespace).servicebus.windows.net/(queue);SharedAccessKeyName=(sharedAccessKey);SharedAccessKey=(sharedAccessKeyName)',
+
+                // value if not present in connectionString
+                'namespace' => 'your service bus namespace',
+                'sharedAccessKey' => 'your shared access key to access the service bus queue',
+                'sharedAccessKeyName' => 'your shared access key name',
+                'queue' => 'the name of your Azure Service Bus queue (can be different than the name used as config key)',
             ],
         ],
     ],
@@ -59,6 +61,3 @@ Yii::$app->queue->push(new DownloadJob([
     'file' => '/tmp/image.jpg',
 ]));
 ```
-
-
-

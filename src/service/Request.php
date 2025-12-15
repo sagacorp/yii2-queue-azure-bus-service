@@ -32,7 +32,7 @@ class Request extends BaseRequest
 
             $delay = $this->getRetryDelay($this->attempts);
 
-            \Yii::error('Retry request in ' . $delay . ' seconds');
+            \Yii::warning('Retry request in ' . $delay . ' seconds');
             sleep($delay);
 
             ++$this->attempts;
@@ -50,6 +50,6 @@ class Request extends BaseRequest
 
     protected function getRetryDelay(int $attempts): int
     {
-        return 4 ** $attempts;
+        return max(4 ** $attempts, 21600); // Max 6 hours delay
     }
 }

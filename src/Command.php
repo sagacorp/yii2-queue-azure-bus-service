@@ -9,9 +9,9 @@ use yii\queue\cli\Command as CliCommand;
  */
 class Command extends CliCommand
 {
-    public function actionListen(?string $queue = null): void
+    public function actionListen(): void
     {
-        $this->queue->run(true, $queue);
+        $this->queue->run(true);
     }
 
     protected function isWorkerAction($actionID): bool

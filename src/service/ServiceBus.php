@@ -14,16 +14,16 @@ use yii\httpclient\Response;
 
 class ServiceBus extends Component
 {
-    public const string PEEK_LOCK = 'POST';
+    public const RECEIVE_MODE_PEEK_LOCK = 'peek-lock';
+    public const RECEIVE_MODE_RECEIVE_AND_DELETE = 'receive-and-delete';
 
     private const string HEADER_AUTHENTICATION = 'authorization';
-    private const string SAS_AUTHORIZATION_FORMAT = 'SharedAccessSignature sig=%s&se=%s&skn=%s&sr=%s';
 
-    public bool $acceptMessage = true;
-    public string $environment = 'servicebus.windows.net';
+    public string $connectionString;
+    public string $namespace;
     public string $queue;
+    public string $receiveMode = self::RECEIVE_MODE_PEEK_LOCK;
     public int $requestMaxRetries = 10;
-    public string $serviceBusNamespace;
     public string $sharedAccessKey;
     public string $sharedAccessKeyName;
     public string $to;
@@ -40,6 +40,11 @@ class ServiceBus extends Component
      */
     public function deleteMessage(Message $message): void
     {
+        // Messages are already deleted in the "Receive And Delete" receive mode
+        if (self::RECEIVE_MODE_RECEIVE_AND_DELETE === $this->receiveMode) {
+            return;
+        }
+
         $lockLocationPath = parse_url((string) $message->location, PHP_URL_PATH);
 
         $request = $this->httpClient->delete($lockLocationPath);
@@ -51,8 +56,17 @@ class ServiceBus extends Component
     {
         parent::init();
 
+        if (isset($this->connectionString)) {
+            $connectionString = (new ConnectionStringParser($this->connectionString))->parseConnectionString();
+
+            $this->namespace ??= $connectionString['namespace'] ?? '';
+            $this->sharedAccessKeyName ??= $connectionString['SharedAccessKeyName'] ?? '';
+            $this->sharedAccessKey ??= $connectionString['SharedAccessKey'] ?? '';
+            $this->queue ??= $connectionString['queue'] ?? '';
+        }
+
         $this->httpClient = new Client([
-            'baseUrl' => sprintf('https://%s.%s', $this->serviceBusNamespace, $this->environment),
+            'baseUrl' => sprintf('https://%s.servicebus.windows.net/%s', $this->namespace, $this->queue),
             'transport' => CurlTransport::class,
             'requestConfig' => [
                 'class' => Request::class,
@@ -68,68 +82,72 @@ class ServiceBus extends Component
      *
      * @throws InvalidConfigException
      */
-    public function receiveMessage(string $peekMethod, ?int $timeout = null): ?Message
+    public function receiveMessage(?int $timeout = null): ?Message
     {
-        $url = [sprintf('%s/messages/head', $this->queue)];
+        $url = ['/messages/head'];
 
         if (null !== $timeout) {
             $url['timeout'] = $timeout;
         }
 
-        $request = $this->httpClient->createRequest()->setUrl($url)->setMethod($peekMethod);
+        $method = self::RECEIVE_MODE_PEEK_LOCK === $this->receiveMode ? 'POST' : 'DELETE';
+        $request = $this->httpClient->createRequest()->setUrl($url)->setMethod($method);
 
         $request->headers->add('content-length', 0);
 
-        $response = $request->sendAndRetryOnFailure(['204', '200', '201']);
-        $message = null;
+        $expectedStatusCode = self::RECEIVE_MODE_PEEK_LOCK === $this->receiveMode ? '201' : '200';
 
-        if (\in_array($response->statusCode, ['200', '201'], true)) {
-            $headers = [];
+        $response = $request->sendAndRetryOnFailure(['204', $expectedStatusCode]);
 
-            foreach ($response->headers as $key => $value) {
-                if (!empty($value)) {
-                    $headers[$key] = reset($value);
-                }
+        if ('204' === $response->statusCode) {
+            return null;
+        }
+
+        $headers = [];
+
+        foreach ($response->headers as $key => $value) {
+            if (!empty($value)) {
+                $headers[$key] = reset($value);
             }
+        }
 
-            $message = new Message(
-                $response->getContent(),
-                ArrayHelper::remove($headers, 'content-type'),
-                Carbon::parse(ArrayHelper::remove($headers, 'date')) ?? null,
-                ArrayHelper::remove($headers, 'location'),
-            );
+        $message = new Message(
+            $response->getContent(),
+            ArrayHelper::remove($headers, 'content-type'),
+            Carbon::parse(ArrayHelper::remove($headers, 'date')) ?? null,
+            ArrayHelper::remove($headers, 'location'),
+        );
 
-            $headerBrokerProperties = ArrayHelper::remove($headers, 'brokerproperties');
+        $headerBrokerProperties = ArrayHelper::remove($headers, 'brokerproperties');
 
-            if ($headerBrokerProperties) {
-                try {
-                    $headerBrokerProperties = json_decode((string) $headerBrokerProperties, true, 512, JSON_THROW_ON_ERROR);
+        if ($headerBrokerProperties) {
+            try {
+                $headerBrokerProperties = json_decode((string) $headerBrokerProperties, true, 512, JSON_THROW_ON_ERROR);
 
-                    $message->brokerProperties = new BrokerProperties(
-                        $headerBrokerProperties['CorrelationId'] ?? null,
-                        $headerBrokerProperties['SessionId'] ?? null,
-                        $headerBrokerProperties['DeliveryCount'] ?? 1,
-                        Carbon::parse($headerBrokerProperties['LockedUntil'] ?? null, 'UTC') ?? null,
-                        $headerBrokerProperties['LockToken'] ?? null,
-                        $headerBrokerProperties['MessageId'] ?? null,
-                        $headerBrokerProperties['Label'] ?? null,
-                        $headerBrokerProperties['ReplyTo'] ?? null,
-                        $headerBrokerProperties['SequenceNumber'] ?? null,
-                        $headerBrokerProperties['TimeToLive'] ?? 1,
-                        $headerBrokerProperties['To'] ?? null,
-                        Carbon::parse($headerBrokerProperties['ScheduledEnqueueTimeUtc'] ?? null, 'UTC') ?? null,
-                        $headerBrokerProperties['ReplyToSessionId'] ?? null,
-                        $headerBrokerProperties['PartitionKey'] ?? null,
-                    );
-                } catch (\JsonException $e) {
-                    \Yii::error($e);
-                }
+                $message->brokerProperties = new BrokerProperties(
+                    $headerBrokerProperties['CorrelationId'] ?? null,
+                    $headerBrokerProperties['SessionId'] ?? null,
+                    $headerBrokerProperties['DeliveryCount'] ?? 1,
+                    Carbon::parse($headerBrokerProperties['LockedUntil'] ?? null, 'UTC') ?? null,
+                    $headerBrokerProperties['LockToken'] ?? null,
+                    $headerBrokerProperties['MessageId'] ?? null,
+                    $headerBrokerProperties['Label'] ?? null,
+                    $headerBrokerProperties['ReplyTo'] ?? null,
+                    $headerBrokerProperties['SequenceNumber'] ?? null,
+                    $headerBrokerProperties['TimeToLive'] ?? 1,
+                    $headerBrokerProperties['To'] ?? null,
+                    Carbon::parse($headerBrokerProperties['ScheduledEnqueueTimeUtc'] ?? null, 'UTC') ?? null,
+                    $headerBrokerProperties['ReplyToSessionId'] ?? null,
+                    $headerBrokerProperties['PartitionKey'] ?? null,
+                );
+            } catch (\JsonException $e) {
+                \Yii::error($e);
             }
+        }
 
-            foreach ($headers as $headerKey => $value) {
-                if (is_scalar($value)) {
-                    $message->setProperty($headerKey, $value);
-                }
+        foreach ($headers as $headerKey => $value) {
+            if (is_scalar($value)) {
+                $message->setProperty($headerKey, $value);
             }
         }
 
@@ -142,9 +160,9 @@ class ServiceBus extends Component
      * @throws \JsonException
      * @throws Exception|Exception
      */
-    public function sendMessage(Message $message, ?string $queue = null): Response
+    public function sendMessage(Message $message): Response
     {
-        $path = sprintf('%s/messages', $queue ?? $this->queue);
+        $path = ['/messages'];
 
         $request = $this->httpClient->post($path, $message->body);
 
@@ -166,27 +184,13 @@ class ServiceBus extends Component
 
     protected function authorizationHeaderHandler(RequestEvent $requestEvent): void
     {
-        $requestEvent->request->headers->set(self::HEADER_AUTHENTICATION, $this->generateAuthorizationToken($requestEvent->request->getFullUrl()));
-    }
-
-    protected function generateAuthorizationToken(string $url): string
-    {
-        $expiry = time() + $this->tokenDuration;
-        $encodedUrl = $this->lowerUrlEncode($url);
-        $scope = $encodedUrl . "\n" . $expiry;
-        $signature = base64_encode(hash_hmac('sha256', $scope, $this->sharedAccessKey, true));
-
-        return sprintf(
-            self::SAS_AUTHORIZATION_FORMAT,
-            $this->lowerUrlEncode($signature),
-            $expiry,
+        $authToken = (new SasTokenGenerator(
+            $requestEvent->request->getFullUrl(),
             $this->sharedAccessKeyName,
-            $encodedUrl
-        );
-    }
+            $this->sharedAccessKey,
+            $this->tokenDuration
+        ))->generateSharedAccessSignatureToken();
 
-    protected function lowerUrlEncode($str): ?string
-    {
-        return preg_replace_callback('/%[0-9A-F]{2}/', static fn (array $matches): string => strtolower((string) $matches[0]), urlencode((string) $str));
+        $requestEvent->request->headers->set(self::HEADER_AUTHENTICATION, $authToken);
     }
 }
