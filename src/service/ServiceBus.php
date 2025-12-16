@@ -46,9 +46,11 @@ class ServiceBus extends Component
             return;
         }
 
-        $lockLocationPath = parse_url((string) $message->location, PHP_URL_PATH);
+        $location = empty($message->location)
+            ? "/messages/{$message->brokerProperties->sequenceNumber}/{$message->brokerProperties->lockToken}"
+            : $message->location;
 
-        $request = $this->httpClient->delete($lockLocationPath);
+        $request = $this->httpClient->delete($location);
 
         $request->sendAndRetryOnFailure(['200']);
     }
