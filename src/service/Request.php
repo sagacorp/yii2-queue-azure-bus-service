@@ -50,6 +50,6 @@ class Request extends BaseRequest
 
     protected function getRetryDelay(int $attempts): int
     {
-        return max(4 ** $attempts, 21600); // Max 6 hours delay
+        return min(4 ** $attempts, 21600); // Max 6 hours delay
     }
 }
