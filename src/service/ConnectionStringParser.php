@@ -22,7 +22,7 @@ readonly class ConnectionStringParser
         }
 
         foreach (['Endpoint', 'SharedAccessKeyName', 'SharedAccessKey'] as $required) {
-            if (!isset($data[$required])) {
+            if (!isset($result[$required])) {
                 throw new InvalidArgumentException("Missing {$required}");
             }
         }
