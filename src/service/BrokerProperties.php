@@ -41,7 +41,7 @@ class BrokerProperties implements \JsonSerializable
             'ReplyTo' => $this->replyTo,
             'TimeToLive' => $this->timeToLive,
             'To' => $this->to,
-            'ScheduledEnqueueTimeUtc' => $this->scheduledEnqueueTimeUtc?->format(\DateTimeInterface::RFC7231),
+            'ScheduledEnqueueTimeUtc' => $this->scheduledEnqueueTimeUtc?->format('Y-m-d\TH:i:s\Z'),
             'ReplyToSessionId' => $this->replyToSessionId,
             'PartitionKey' => $this->partitionKey,
         ]);
