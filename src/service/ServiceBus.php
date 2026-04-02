@@ -14,6 +14,7 @@ use yii\httpclient\Response;
 
 class ServiceBus extends Component
 {
+    public const int BATCH_MAX_BYTES = 256000;
     public const string RECEIVE_MODE_PEEK_LOCK = 'peek-lock';
     public const string RECEIVE_MODE_RECEIVE_AND_DELETE = 'receive-and-delete';
 
@@ -159,31 +160,23 @@ class ServiceBus extends Component
     }
 
     /**
-     * Sends a brokered message.
+     * Sends one or more messages, splitting into sub-batches to respect the 256KB limit.
+     *
+     * @param Message[] $messages
+     *
+     * @return Response[]
      *
      * @throws \JsonException
-     * @throws Exception|Exception
+     * @throws Exception
      */
-    public function sendMessage(Message $message): Response
+    public function sendMessages(array $messages): array
     {
-        $path = ['/messages'];
+        $entries = array_map(
+            fn (Message $message) => json_encode($this->buildBatchEntry($message), JSON_THROW_ON_ERROR),
+            $messages,
+        );
 
-        $request = $this->httpClient->post($path, $message->body);
-
-        if (null !== $message->contentType) {
-            $request->headers->set('content-type', $message->contentType);
-        }
-
-        if ($message->brokerProperties instanceof BrokerProperties) {
-            $request->headers->set('BrokerProperties', json_encode($message->brokerProperties, JSON_THROW_ON_ERROR));
-        }
-
-        foreach ($message->properties as $key => $value) {
-            $value = json_encode($value, JSON_THROW_ON_ERROR);
-            $request->headers->set($key, $value);
-        }
-
-        return $request->sendAndRetryOnFailure(['201']);
+        return array_map(fn (array $batch) => $this->sendBatch($batch), $this->splitIntoBatches($entries));
     }
 
     protected function authorizationHeaderHandler(RequestEvent $requestEvent): void
@@ -196,5 +189,62 @@ class ServiceBus extends Component
         ))->generateSharedAccessSignatureToken();
 
         $requestEvent->request->headers->set(self::HEADER_AUTHENTICATION, $authToken);
+    }
+
+    private function buildBatchEntry(Message $message): array
+    {
+        $entry = ['Body' => $message->body];
+
+        if ($message->brokerProperties instanceof BrokerProperties) {
+            $entry['BrokerProperties'] = $message->brokerProperties->jsonSerialize();
+        }
+
+        if (!empty($message->properties)) {
+            $entry['UserProperties'] = $message->properties;
+        }
+
+        return $entry;
+    }
+
+    private function sendBatch(array $encodedEntries): Response
+    {
+        $request = $this->httpClient->post(['/messages']);
+        $request->headers->set('content-type', 'application/vnd.microsoft.servicebus.json');
+        $request->setContent('[' . implode(',', $encodedEntries) . ']');
+
+        return $request->sendAndRetryOnFailure(['201']);
+    }
+
+    /**
+     * Splits pre-encoded JSON entries into sub-batches respecting the 256KB limit.
+     *
+     * @param string[] $encodedEntries JSON-encoded entries
+     *
+     * @return string[][] batches of JSON-encoded entries
+     */
+    private function splitIntoBatches(array $encodedEntries): array
+    {
+        $batches = [];
+        $currentBatch = [];
+        $currentSize = 0;
+
+        foreach ($encodedEntries as $entry) {
+            $entrySize = strlen($entry) + 1;
+
+            if (!empty($currentBatch) && ($currentSize + $entrySize) > self::BATCH_MAX_BYTES) {
+                $batches[] = $currentBatch;
+                $currentBatch = [];
+                $currentSize = 0;
+            }
+
+            $currentBatch[] = $entry;
+            $currentSize += $entrySize;
+        }
+
+        if (!empty($currentBatch)) {
+            $batches[] = $currentBatch;
+        }
+
+        return $batches;
     }
 }

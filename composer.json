@@ -15,6 +15,7 @@
   "require": {
     "php": "^8.3",
     "nesbot/carbon": "^2.0 | ^3.0",
+    "sagacorp/yii2-queue-contracts": "^1.0",
     "yiisoft/yii2-httpclient": "^2.0",
     "yiisoft/yii2-queue": "^2.0"
   },

@@ -5,12 +5,13 @@ namespace sagacorp\queue\azure;
 use sagacorp\queue\azure\service\BrokerProperties;
 use sagacorp\queue\azure\service\Message;
 use sagacorp\queue\azure\service\ServiceBus;
+use sagacorp\queue\contracts\BatchableQueueInterface;
 use yii\base\InvalidConfigException;
 use yii\base\NotSupportedException;
 use yii\di\Instance;
 use yii\httpclient\Exception;
 
-class Queue extends \yii\queue\cli\Queue
+class Queue extends \yii\queue\cli\Queue implements BatchableQueueInterface
 {
     public $commandClass = Command::class;
 
@@ -30,6 +31,18 @@ class Queue extends \yii\queue\cli\Queue
         parent::init();
 
         $this->serviceBus = Instance::ensure($this->serviceBus, ServiceBus::class);
+    }
+
+    public function pushBatch(array $messages): array
+    {
+        $azureMessages = array_map(
+            fn (array $entry) => $this->buildMessage($entry['message'], $entry['ttr'], $entry['delay']),
+            $messages,
+        );
+
+        $this->serviceBus->sendMessages($azureMessages);
+
+        return array_map(fn (Message $m) => $m->brokerProperties->messageId, $azureMessages);
     }
 
     /**
@@ -59,6 +72,14 @@ class Queue extends \yii\queue\cli\Queue
         throw new NotSupportedException('Status is not supported in the driver.');
     }
 
+    protected function buildMessage(string $message, int $ttr, int $delay): Message
+    {
+        $brokerProperties = new BrokerProperties(timeToLive: $ttr, to: $this->id);
+        $brokerProperties->setDelay($delay);
+
+        return new Message($message, brokerProperties: $brokerProperties);
+    }
+
     /**
      * @throws Exception
      * @throws InvalidConfigException
@@ -82,26 +103,11 @@ class Queue extends \yii\queue\cli\Queue
         }
     }
 
-    /**
-     * @param int   $ttr      time to reserve in seconds
-     * @param int   $delay
-     * @param mixed $priority
-     * @param mixed $message
-     *
-     * @return string id of a job message
-     *
-     * @throws \JsonException
-     * @throws Exception
-     */
     protected function pushMessage($message, $ttr, $delay, $priority): string
     {
-        $brokerProperties = new BrokerProperties(timeToLive: $ttr, to: $this->id);
+        $azureMessage = $this->buildMessage($message, $ttr, $delay);
 
-        $brokerProperties->setDelay($delay);
-
-        $azureMessage = new Message($message, brokerProperties: $brokerProperties);
-
-        $this->serviceBus->sendMessage($azureMessage);
+        $this->serviceBus->sendMessages([$azureMessage]);
 
         return $azureMessage->brokerProperties->messageId;
     }
