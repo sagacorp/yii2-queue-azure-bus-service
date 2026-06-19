@@ -75,6 +75,14 @@ class ServiceBus extends Component
 
             $this->host = $connectionString['host'];
             $this->queue ??= $connectionString['EntityPath'] ?? '';
+
+            if (isset($connectionString['SharedAccessKeyName'], $connectionString['SharedAccessKey']) && !isset($this->tokenProvider)) {
+                $this->tokenProvider = [
+                    'class' => SasTokenProvider::class,
+                    'sharedAccessKeyName' => $connectionString['SharedAccessKeyName'],
+                    'sharedAccessKey' => $connectionString['SharedAccessKey'],
+                ];
+            }
         } else {
             $this->host = "{$this->namespace}.servicebus.windows.net";
         }

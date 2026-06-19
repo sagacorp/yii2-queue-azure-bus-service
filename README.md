@@ -44,7 +44,7 @@ return [
                 'namespace' => 'your service bus namespace',
                 'queue' => 'the name of your Azure Service Bus queue (can be different than the name used as config key)',
 
-                // Required: how to authenticate (see below).
+                // Required: how to authenticate (see below). When SharedAccessKeyName and SharedAccessKey are present in connectionString, a SasTokenProvider is configured automatically.
                 'tokenProvider' => [
                     'class' => \saga\queue\azure\service\SasTokenProvider::class,
                     'sharedAccessKeyName' => 'your shared access key name',
@@ -58,23 +58,25 @@ return [
 
 <h3>Authentication</h3>
 
-Authentication is handled by a dedicated, **required** `tokenProvider` component, so the
-`ServiceBus` component itself only carries the connection parameters. The `tokenProvider` accepts a
-configuration array (as shown below), a shared application component id, or an already built
-`TokenProvider` instance. Two providers are shipped:
+Authentication is handled by a dedicated `tokenProvider` component, so the `ServiceBus` component
+itself only carries the connection parameters. It is required — unless a connection string with a
+shared access key is supplied, in which case a `SasTokenProvider` is configured automatically. The
+`tokenProvider` accepts a configuration array (as shown below), a shared application component id,
+or an already built `TokenProvider` instance. Two providers are shipped:
 
 **`SasTokenProvider`** — [Shared Access Signature](https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-sas)
-authentication. Provide the key explicitly or derive it from a connection string:
+authentication:
 
 ```php
 'tokenProvider' => [
     'class' => \saga\queue\azure\service\SasTokenProvider::class,
     'sharedAccessKeyName' => '...',
     'sharedAccessKey' => '...',
-    // or, instead of the two keys above:
-    'connectionString' => 'Endpoint=;SharedAccessKeyName=...;SharedAccessKey=...',
 ],
 ```
+
+When the `ServiceBus` `connectionString` already contains `SharedAccessKeyName` and
+`SharedAccessKey`, this provider is configured automatically and `tokenProvider` can be omitted.
 
 **`AzureAdTokenProvider`** — [Azure AD](https://learn.microsoft.com/azure/aks/workload-identity-overview)
 authentication via [`azure-oss/identity`](https://github.com/Azure-OSS/azure-identity-php)'s
@@ -107,10 +109,6 @@ Optionally tune the scope and token caching:
 
 The targeted identity must be granted a Service Bus data plane role (e.g. *Azure Service Bus Data
 Sender* / *Data Receiver*) on the namespace or queue.
-
-> **Upgrading from 4.x:** `tokenProvider` is now mandatory. Move the `sharedAccessKey`,
-> `sharedAccessKeyName` and `tokenDuration` options off `ServiceBus` and into a `SasTokenProvider`
-> under `tokenProvider` to keep the previous SAS behaviour.
 
 Once configured,  you can send a task into the queue:
 
