@@ -21,10 +21,8 @@ readonly class ConnectionStringParser
             $result[$key] = $value;
         }
 
-        foreach (['Endpoint', 'SharedAccessKeyName', 'SharedAccessKey'] as $required) {
-            if (!isset($result[$required])) {
-                throw new InvalidArgumentException("Missing {$required}");
-            }
+        if (!isset($result['Endpoint'])) {
+            throw new InvalidArgumentException('Missing Endpoint');
         }
 
         $parsed = parse_url($result['Endpoint']);

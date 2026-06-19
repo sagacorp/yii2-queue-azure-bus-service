@@ -5,6 +5,7 @@ namespace sagacorp\queue\azure\service;
 use Carbon\Carbon;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
+use yii\di\Instance;
 use yii\helpers\ArrayHelper;
 use yii\httpclient\Client;
 use yii\httpclient\CurlTransport;
@@ -25,10 +26,16 @@ class ServiceBus extends Component
     public string $queue;
     public string $receiveMode = self::RECEIVE_MODE_PEEK_LOCK;
     public int $requestMaxRetries = 10;
-    public string $sharedAccessKey;
-    public string $sharedAccessKeyName;
     public string $to;
-    public int $tokenDuration = 3600;
+
+    /**
+     * The token provider used to authenticate requests against the Service Bus REST API.
+     *
+     * Accepts a component id, a configuration array or a {@see TokenProvider} instance.
+     * It is required: use a {@see SasTokenProvider} for Shared Access Signature authentication
+     * or an {@see AzureAdTokenProvider} for Azure AD (workload identity).
+     */
+    public array|string|TokenProvider $tokenProvider;
 
     private string $host;
     private Client $httpClient;
@@ -56,6 +63,9 @@ class ServiceBus extends Component
         $request->sendAndRetryOnFailure(['200']);
     }
 
+    /**
+     * @throws InvalidConfigException
+     */
     public function init(): void
     {
         parent::init();
@@ -64,12 +74,13 @@ class ServiceBus extends Component
             $connectionString = (new ConnectionStringParser($this->connectionString))->parseConnectionString();
 
             $this->host = $connectionString['host'];
-            $this->sharedAccessKeyName ??= $connectionString['SharedAccessKeyName'] ?? '';
-            $this->sharedAccessKey ??= $connectionString['SharedAccessKey'] ?? '';
             $this->queue ??= $connectionString['EntityPath'] ?? '';
         } else {
             $this->host = "{$this->namespace}.servicebus.windows.net";
         }
+
+        $this->tokenProvider = $this->resolveTokenProvider();
+
         $this->httpClient = new Client([
             'baseUrl' => sprintf('https://%s/%s', $this->host, $this->queue),
             'transport' => CurlTransport::class,
@@ -181,14 +192,24 @@ class ServiceBus extends Component
 
     protected function authorizationHeaderHandler(RequestEvent $requestEvent): void
     {
-        $authToken = (new SasTokenGenerator(
-            $requestEvent->request->getFullUrl(),
-            $this->sharedAccessKeyName,
-            $this->sharedAccessKey,
-            $this->tokenDuration
-        ))->generateSharedAccessSignatureToken();
+        $requestEvent->request->headers->set(
+            self::HEADER_AUTHENTICATION,
+            $this->tokenProvider->getAuthorizationHeader($requestEvent->request->getFullUrl()),
+        );
+    }
 
-        $requestEvent->request->headers->set(self::HEADER_AUTHENTICATION, $authToken);
+    /**
+     * @throws InvalidConfigException
+     */
+    protected function resolveTokenProvider(): TokenProvider
+    {
+        if (!isset($this->tokenProvider)) {
+            throw new InvalidConfigException(
+                'The "tokenProvider" property must be set to a TokenProvider.'
+            );
+        }
+
+        return Instance::ensure($this->tokenProvider, TokenProvider::class);
     }
 
     private function buildBatchEntry(Message $message): array
