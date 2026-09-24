@@ -21,6 +21,12 @@ class ServiceBus extends Component
 
     private const string HEADER_AUTHENTICATION = 'authorization';
 
+    /**
+     * Extra seconds added to the server-side long-polling timeout to compute the transport timeout,
+     * so the client gives up on its own when Service Bus fails to honor the requested timeout.
+     */
+    private const int RECEIVE_TIMEOUT_MARGIN = 5;
+
     public string $connectionString;
     public string $namespace;
     public string $queue;
@@ -108,14 +114,16 @@ class ServiceBus extends Component
      */
     public function receiveMessage(?int $timeout = null): ?Message
     {
-        $url = ['/messages/head'];
+        $method = self::RECEIVE_MODE_PEEK_LOCK === $this->receiveMode ? 'POST' : 'DELETE';
+        $request = $this->httpClient->createRequest()->setMethod($method);
 
+        $url = ['/messages/head'];
         if (null !== $timeout) {
             $url['timeout'] = $timeout;
+            $request->addOptions(['timeout' => $timeout + self::RECEIVE_TIMEOUT_MARGIN]);
         }
 
-        $method = self::RECEIVE_MODE_PEEK_LOCK === $this->receiveMode ? 'POST' : 'DELETE';
-        $request = $this->httpClient->createRequest()->setUrl($url)->setMethod($method);
+        $request->setUrl($url);
 
         $request->headers->add('content-length', 0);
 
